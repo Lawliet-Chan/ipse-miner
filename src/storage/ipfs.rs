@@ -1,5 +1,5 @@
 use crate::storage::Storage;
-use std::io::Result;
+use std::io::{Result, Cursor};
 use ipfs_api::IpfsClient;
 
 pub struct IpfsStorage {
@@ -7,15 +7,17 @@ pub struct IpfsStorage {
 }
 
 impl Storage for IpfsStorage {
-    fn write(&mut self, key: &str, file: Vec<u8>) -> Result<()> {
+    fn write(&mut self, key: &str, file: Vec<u8>) -> Result<String> {
         async_std::task::block_on(async move {
-            self.cli.files_write(key, true, true, file).await
+            let file = Cursor::new(file);
+            let res = self.cli.add(file).await?;
+            res.hash
         })
     }
 
     fn read(&self, key: &str) -> Result<Vec<u8>> {
         async_std::task::block_on(async move {
-            self.cli.files_read(key)
+            self.cli.cat(key)
                 .map_ok(|chunk| chunk.to_vec() )
                 .try_concat()
                 .await

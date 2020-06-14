@@ -6,7 +6,7 @@ use ipfs_api::IpfsClient;
 use http::{Request, Uri};
 
 pub trait Storage {
-    fn write(&mut self, key: &str, file: Vec<u8>) -> Result<()>;
+    fn write(&mut self, key: &str, file: Vec<u8>) -> Result<String>;
     fn read(&self, key: &str) -> Result<Vec<u8>>;
     fn delete(&mut self, key: &str) -> Result<()>;
 }
