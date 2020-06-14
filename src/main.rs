@@ -33,7 +33,7 @@ fn main() {
                                 .get_matches();
     let ipfs_url = matches.value_of(IPFS_URL).unwrap_or("localhost:5001");
     let meta_path = matches.value_of(META_PATH).unwrap_or("/ipse-miner/meta");
-    let chain_url = matches.value_of(CHAIN_URL).unwrap();
+    let chain_url = matches.value_of(CHAIN_URL).unwrap_or("ws://localhost:9944");
     let cfg = config::Conf {
         ipfs_url,
         meta_path,
