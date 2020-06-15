@@ -56,8 +56,9 @@ impl<S: Storage, P: Pair> Miner<S, P>{
                 .set_url(url)
                 .build().await.unwrap()
         });
-        /// This signer should be Configurable.
-        let signer = AccountKeyring::Alice.pair();
+        let signer =Pair::from_string(&format!("//{}", cfg.sign), cfg.pwd)
+            .expect("make Pair failed");
+
         Self {
             signer,
             cli,
