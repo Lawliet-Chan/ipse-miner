@@ -14,6 +14,8 @@ use codec::{Encode};
 use sp_core::{storage::StorageKey, twox_128, Pair};
 use sp_keyring::AccountKeyring;
 use sub_runtime::ipse::{Order, BalanceOf};
+use triehash::ordered_trie_root;
+use keccak_hasher::KeccakHasher;
 
 type AccountId = <Runtime as System>::AccountId;
 type Balance = BalanceOf<Runtime>;
@@ -56,7 +58,7 @@ impl<S: Storage, P: Pair> Miner<S, P>{
                 .set_url(url)
                 .build().await.unwrap()
         });
-        let signer =Pair::from_string(&format!("//{}", cfg.sign), cfg.pwd)
+        let signer = Pair::from_string(&format!("//{}", cfg.sign), cfg.pwd)
             .expect("make Pair failed");
 
         Self {
@@ -79,24 +81,26 @@ impl<S: Storage, P: Pair> Miner<S, P>{
         })
     }
 
-    pub fn confirm_order_to_chain(&self, id: usize) {
+    pub fn write(&mut self, id: usize, file: Vec<u8>) {
 
     }
 
-    pub fn delete_on_chain(&self, id: usize) {
+    pub fn read(&self, id: usize) {
 
     }
 
-    pub fn write(&mut self) {
-
+    pub fn delete(&mut self, id: usize) {
+        self.call_delete(id);
     }
 
-    pub fn read(&self) {
-
-    }
-
-    pub fn delete(&mut self) {
-
+    fn check_merkle_root(&self, file: Vec<u8>, merkle_root_on_chain: [u8; 32]) -> bool {
+        let mut iter = file.chunks(64);
+        let mut chunks = Vec::new();
+        while let Some(chunk) = iter.next() {
+            chunks.push(chunk)
+        }
+        let merkle_root = ordered_trie_root::<KeccakHasher, _>(chunks);
+        merkle_root == merkle_root_on_chain
     }
 
     fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError>{

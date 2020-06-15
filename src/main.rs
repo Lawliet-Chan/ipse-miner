@@ -58,7 +58,6 @@ fn main() {
 
 }
 
-
 #[get("/order/new?id=<num>")]
 pub fn new_order(num: usize) {
 
@@ -66,10 +65,10 @@ pub fn new_order(num: usize) {
 
 #[get("/order/delete?id=<num>")]
 pub fn delete_order(num: usize) {
-
+    m.delete(num)
 }
 
-#[get("/data/transfer?id=<num>")]
-pub fn transfer_data(num: usize) {
-
-}
+// #[get("/data/transfer?id=<num>")]
+// pub fn transfer_data(num: usize) {
+//
+// }
