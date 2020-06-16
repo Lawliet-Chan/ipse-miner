@@ -1,6 +1,6 @@
+use serde::de::{Deserialize, Deserializer};
 use std::fs;
 use std::io::Read;
-use serde::de::{Deserialize, Deserializer};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conf {
@@ -17,7 +17,7 @@ pub struct Conf {
     pub pwd: Option<&'static str>,
 }
 
-pub fn load_conf(fpath: &str) -> Conf{
+pub fn load_conf(fpath: &str) -> Conf {
     let buf = fs::read_to_string(fpath).expect("load config file failed");
     serde_yaml::from_str(buf.as_ref()).expect("parse config file failed")
 }
