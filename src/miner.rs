@@ -16,12 +16,14 @@ use sp_keyring::AccountKeyring;
 use sub_runtime::ipse::{Order, BalanceOf};
 use triehash::ordered_trie_root;
 use keccak_hasher::KeccakHasher;
+use sp_runtime::SaturatedConversion;
 
 type AccountId = <Runtime as System>::AccountId;
 type Balance = BalanceOf<Runtime>;
 
 const IPSE_MODULE: &str = "Ipse";
 const ORDERS_STORAGE: &str = "Orders";
+const REGISTER_MINER: &str = "register_miner";
 const CONFIRM_ORDER: &str = "confirm_order";
 const DELETE: &str = "delete";
 
@@ -36,17 +38,6 @@ struct DataInfo {
     pub sector: u64,
     pub offset: u64,
     pub length: u64,
-}
-
-#[derive(Encode)]
-pub struct ConfirmArgs {
-    pub id: u64,
-    pub url: Vec<u8>,
-}
-
-#[derive(Encode)]
-pub struct DeleteArgs {
-    pub id: u64
 }
 
 impl<S: Storage, P: Pair> Miner<S, P>{
@@ -81,15 +72,15 @@ impl<S: Storage, P: Pair> Miner<S, P>{
         })
     }
 
-    pub fn write(&mut self, id: usize, file: Vec<u8>) {
+    pub fn write_file(&mut self, id: usize, file: Vec<u8>) {
 
     }
 
-    pub fn read(&self, id: usize) {
+    pub fn read_file(&self, id: usize) {
 
     }
 
-    pub fn delete(&mut self, id: usize) {
+    pub fn delete_file(&mut self, id: usize) {
         self.call_delete(id);
     }
 
@@ -103,23 +94,33 @@ impl<S: Storage, P: Pair> Miner<S, P>{
         merkle_root == merkle_root_on_chain
     }
 
-    fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError>{
+    fn call_register_miner(&self, nickname: &str, region: &str, url: &str, capacity: u64, unit_price: u64) -> Result<(), SubError> {
+        let call = Call::new(IPSE_MODULE, REGISTER_MINER, RegisterArgs {
+            nickname: nickname.as_bytes().to_vec(),
+            region: region.as_bytes().to_vec(),
+            url: url.as_bytes().to_vec(),
+            capacity,
+            unit_price: unit_price.saturated_into::<Balance>(),
+        });
+        self.async_call_chain(call)
+    }
+
+    fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError> {
         let call = Call::new(IPSE_MODULE, CONFIRM_ORDER, ConfirmArgs{
             id: id as u64,
             url: url.into_bytes(),
         });
-        async_std::task::block_on(async move {
-            let signer = self.signer.clone();
-            let xt = self.cli.xt(signer, None).await?;
-            xt.watch().submit(call).await?;
-            Ok(())
-        })
+        self.async_call_chain(call)
     }
 
-    fn call_delete(&self, id: usize) -> Result<(), SubError>{
+    fn call_delete(&self, id: usize) -> Result<(), SubError> {
         let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs{
             id: id as u64,
         });
+        self.async_call_chain(call)
+    }
+
+    fn async_call_chain<C: Encode>(&self,call: Call<C>) -> Result<(), SubError> {
         async_std::task::block_on(async move {
             let signer = self.signer.clone();
             let xt = self.cli.xt(signer, None).await?;
@@ -127,5 +128,24 @@ impl<S: Storage, P: Pair> Miner<S, P>{
             Ok(())
         })
     }
+}
 
+#[derive(Encode)]
+pub struct RegisterArgs {
+    pub nickname: Vec<u8>,
+    pub region: Vec<u8>,
+    pub url: Vec<u8>,
+    pub capacity: u64,
+    pub unit_price: Balance,
+}
+
+#[derive(Encode)]
+pub struct ConfirmArgs {
+    pub id: u64,
+    pub url: Vec<u8>,
+}
+
+#[derive(Encode)]
+pub struct DeleteArgs {
+    pub id: u64
 }
