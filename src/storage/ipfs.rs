@@ -7,7 +7,7 @@ pub struct IpfsStorage {
 }
 
 impl Storage for IpfsStorage {
-    fn write(&mut self, file: Vec<u8>) -> Result<String> {
+    fn write(&self, file: Vec<u8>) -> Result<String> {
         async_std::task::block_on(async move {
             let file = Cursor::new(file);
             let res = self.cli.add(file).await?;
@@ -25,7 +25,7 @@ impl Storage for IpfsStorage {
         })
     }
 
-    fn delete(&mut self, key: &str) -> Result<()> {
-        async_std::task::block_on(async move { self.cli.files_rm(key, false).await })
+    fn delete(&self, key: &str) -> Result<()> {
+        async_std::task::block_on(async move { self.cli.pin_rm(key, false).await })
     }
 }

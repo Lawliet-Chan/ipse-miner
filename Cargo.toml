@@ -7,7 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sled = "0.32.0-rc1"
 ipfs-api = "0.7.2"
 rocket = "0.4.5"
 clap = "3.0.0-beta.1"
@@ -18,6 +17,7 @@ lazy_static = "1.4.0"
 substrate-subxt = "0.6.0"
 triehash = "0.8.3"
 keccak-hasher = "0.15.2"
+rusqlite = { version = "0.21.0", features = ["bundled"] }
 
 sp-keyring = { version = "2.0.0-alpha.5", package = "sp-keyring" }
 frame-support = { version = "2.0.0-alpha.4", package = "frame-support" }

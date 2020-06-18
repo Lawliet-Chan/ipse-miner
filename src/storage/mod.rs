@@ -6,9 +6,9 @@ use ipfs_api::IpfsClient;
 use std::io::Result;
 
 pub trait Storage {
-    fn write(&mut self, file: Vec<u8>) -> Result<String>;
+    fn write(&self, file: Vec<u8>) -> Result<String>;
     fn read(&self, key: &str) -> Result<Vec<u8>>;
-    fn delete(&mut self, key: &str) -> Result<()>;
+    fn delete(&self, key: &str) -> Result<()>;
 }
 
 pub fn new_storage<S: Storage>(ipfs_url: &'static str) -> S {

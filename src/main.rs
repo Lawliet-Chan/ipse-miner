@@ -5,6 +5,8 @@ extern crate rocket;
 use clap::{App, Arg};
 use lazy_static::lazy_static;
 use storage::Storage;
+use rocket::Data;
+use std::io::Read;
 
 mod config;
 mod miner;
@@ -34,15 +36,14 @@ fn main() {
     *m = miner::Miner::new(cfg);
 }
 
-#[get("/order/new?id=<num>")]
-pub fn new_order(num: usize) {}
-
-#[get("/order?id=<num>")]
-pub fn get_data(num: usize) {
-    m.read_file(num)
+#[post("/order?id=<num>", data = "<file>")]
+pub fn new_order(num: usize, file: Data) -> Result<(), miner::IpseError>{
+    let mut data = Vec::new();
+    file.open().read(&mut data)?;
+    m.write_file(num, data)
 }
 
-// #[delete("/order?id=<num>")]
-// pub fn delete_order(num: usize) {
-//     m.delete_file(num)
-// }
+#[delete("/order?id=<num>")]
+pub fn delete_order(num: usize) {
+    m.delete_file(num)
+}

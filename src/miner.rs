@@ -4,7 +4,8 @@ use codec::{Decode, Encode};
 use frame_support::{StorageHasher, Twox64Concat};
 use frame_system::ensure_signed;
 use keccak_hasher::KeccakHasher;
-use sled::Db;
+use rusqlite::{Connection, params};
+
 use sp_core::{storage::StorageKey, twox_128, Pair};
 use sp_keyring::AccountKeyring;
 use sp_runtime::SaturatedConversion;
@@ -14,6 +15,7 @@ use substrate_subxt::{
     ExtrinsicSuccess,
 };
 use triehash::ordered_trie_root;
+use std::usize::{from_be_bytes, to_be_bytes};
 
 type AccountId = <Runtime as System>::AccountId;
 type Balance = BalanceOf<Runtime>;
@@ -25,6 +27,8 @@ const REGISTER_MINER: &str = "register_miner";
 const CONFIRM_ORDER: &str = "confirm_order";
 const DELETE: &str = "delete";
 
+pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
+
 pub struct Miner<S: Storage, P: Pair> {
     nickname: &'static str,
     region: &'static str,
@@ -33,19 +37,43 @@ pub struct Miner<S: Storage, P: Pair> {
     unit_price: u64,
     signer: P,
     cli: Client<Runtime>,
-    meta_db: Db,
+    meta_db: Connection,
     storage: S,
 }
 
-struct DataInfo {
+#[derive(Debug)]
+pub struct DataInfo {
+    pub order: u64,
     pub sector: u64,
     pub offset: u64,
-    pub length: u64,
+    pub length: usize,
+    // In IPFS, it is hash.
+    pub file_url: String,
+}
+
+#[derive(Debug)]
+pub struct SectorInfo {
+    pub sector: u64,
+    // remaining storage capacity
+    pub remain: u64,
 }
 
 impl<S: Storage, P: Pair> Miner<S, P> {
     pub fn new(cfg: Conf) -> Self {
-        let meta_db = sled::open(cfg.meta_path).expect("open metadata db");
+        let meta_db = Connection::open(cfg.meta_path).expect("open sqlite failed");
+        meta_db.execute("CREATE TABLE data_info (\
+            order  BIGINT PRIMARY KEY,\
+            sector BIGINT,\
+            offset BIGINT,\
+            length BIGINT,\
+            file_url TEXT NOT NULL\
+            )", params![])
+            .expect("init DataInfo table failed");
+        meta_db.execute("CREATE TABLE sector_info (\
+            sector  BIGINT PRIMARY KEY,\
+            remain  BIGINT\
+            )", params![])
+            .expect("init SectorInfo table failed");
         let storage = new_storage::<ipfs::IpfsStorage>(cfg.ipfs_url);
         let cli = async_std::task::block_on(async move {
             ClientBuilder::<Runtime>::new()
@@ -67,13 +95,18 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             meta_db,
             storage,
         };
+
         miner.register_miner();
         miner
     }
 
-    pub fn write_file(&mut self, id: usize, file: Vec<u8>) {}
+    pub fn write_file(&self, id: usize, file: Vec<u8>) -> Result<(), IpseError>{
 
-    pub fn read_file(&self, id: usize) {}
+    }
+
+    pub fn delete(&self, id: usize) -> Result<(), IpseError>{
+
+    }
 
     fn register_miner(&self) {
         if !self.exist_miner_on_chain() {
@@ -92,7 +125,7 @@ impl<S: Storage, P: Pair> Miner<S, P> {
         merkle_root == merkle_root_on_chain
     }
 
-    pub fn get_order_from_chain(
+    fn get_order_from_chain(
         &self,
         id: usize,
     ) -> Result<Option<&Order<AccountId, Balance>>, SubError> {
@@ -156,12 +189,12 @@ impl<S: Storage, P: Pair> Miner<S, P> {
         self.async_call_chain(call)
     }
 
-    // fn call_delete(&self, id: usize) -> Result<(), SubError> {
-    //     let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs{
-    //         id: id as u64,
-    //     });
-    //     self.async_call_chain(call)
-    // }
+    fn call_delete(&self, id: usize) -> Result<(), SubError> {
+        let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs{
+            id: id as u64,
+        });
+        self.async_call_chain(call)
+    }
 
     fn async_call_chain<C: Encode>(&self, call: Call<C>) -> Result<(), SubError> {
         async_std::task::block_on(async move {
@@ -170,6 +203,31 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             xt.watch().submit(call).await?;
             Ok(())
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum IpseError {
+    IO(std::io::Error),
+    Sqlite(rusqlite::Error),
+    IpfsResp(ipfs_api::response::Error),
+}
+
+impl From<std::io::Error> for IpseError {
+    fn from(err: std::io::Error) -> Self {
+        IpseError::IO(err)
+    }
+}
+
+impl From<rusqlite::Error> for IpseError {
+    fn from(err: rusqlite::Error) -> Self {
+        IpseError::rusqlite(err)
+    }
+}
+
+impl From<ipfs_api::response::Error> for IpseError {
+    fn from(err: ipfs_api::response::Error) -> Self {
+        IpseError::IpfsResp(err)
     }
 }
 
