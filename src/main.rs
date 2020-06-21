@@ -8,9 +8,11 @@ use rocket::Data;
 use std::io::Read;
 use storage::Storage;
 use crate::miner::Miner;
+use crate::error::IpseError;
 
 mod config;
 mod miner;
+mod error;
 mod storage;
 
 lazy_static! {
@@ -40,7 +42,7 @@ fn main() {
 }
 
 #[post("/order?<id>", data = "<file>")]
-pub fn new_order(id: usize, file: Data) -> Result<(), miner::IpseError> {
+pub fn new_order(id: usize, file: Data) -> Result<(), IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
     m.write_file(id as u64, data)

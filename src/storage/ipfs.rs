@@ -1,13 +1,15 @@
 use crate::storage::Storage;
+use crate::error::IpseError;
 use ipfs_api::IpfsClient;
-use std::io::{Cursor, Result};
+use std::io::{Cursor};
+use futures::TryStreamExt;
 
 pub struct IpfsStorage {
     cli: IpfsClient,
 }
 
 impl Storage for IpfsStorage {
-    fn write(&self, file: Vec<u8>) -> Result<String> {
+    fn write(&self, file: Vec<u8>) -> Result<String, IpseError> {
         async_std::task::block_on(async move {
             let file = Cursor::new(file);
             let res = self.cli.add(file).await?;
@@ -15,7 +17,7 @@ impl Storage for IpfsStorage {
         })
     }
 
-    fn read(&self, key: &str) -> Result<Vec<u8>> {
+    fn read(&self, key: &str) -> Result<Vec<u8>, IpseError> {
         async_std::task::block_on(async move {
             self.cli
                 .cat(key)
@@ -25,7 +27,7 @@ impl Storage for IpfsStorage {
         })
     }
 
-    fn delete(&self, key: &str) -> Result<()> {
+    fn delete(&self, key: &str) -> Result<(), IpseError> {
         async_std::task::block_on(async move { self.cli.pin_rm(key, false).await })?;
         Ok(())
     }
