@@ -4,14 +4,13 @@ use codec::{Decode, Encode};
 use frame_support::{StorageHasher, Twox64Concat};
 use frame_system::ensure_signed;
 use keccak_hasher::KeccakHasher;
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{params, Connection};
 
 use frame_support::traits::Len;
 use sp_core::{storage::StorageKey, twox_128, Pair};
 use sp_keyring::AccountKeyring;
 use sp_runtime::traits::Clear;
 use sp_runtime::SaturatedConversion;
-use std::usize::{from_be_bytes, to_be_bytes};
 use sub_runtime::ipse::{BalanceOf, Order};
 use substrate_subxt::{
     system::System, Call, Client, ClientBuilder, DefaultNodeRuntime as Runtime, Error as SubError,
@@ -83,7 +82,7 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             )
             .expect("init SectorInfo table failed");
 
-        let storage = new_storage::<ipfs::IpfsStorage>(cfg.ipfs_url);
+        let storage = new_storage(cfg.ipfs_url);
         let cli = async_std::task::block_on(async move {
             ClientBuilder::<Runtime>::new()
                 .set_url(cfg.chain_url)
@@ -166,7 +165,8 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             })
         })?;
         let data_info: DataInfo = rows[0]?;
-        self.storage.delete(data_info.file_url.as_str())?;
+        let file_url = "/ipfs/".to_string() + data_info.file_url.as_str();
+        self.storage.delete(file_url.as_str())?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2",
             &[data_info.length, data_info.sector],

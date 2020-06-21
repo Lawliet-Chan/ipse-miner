@@ -1,6 +1,6 @@
 pub(crate) mod ipfs;
 
-use http::{Request, Uri};
+use http::Uri;
 use ipfs::IpfsStorage;
 use ipfs_api::IpfsClient;
 use std::io::Result;

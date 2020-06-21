@@ -1,6 +1,5 @@
-use serde::de::{Deserialize, Deserializer};
+use serde::{Serialize, Deserialize};
 use std::fs;
-use std::io::Read;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conf {

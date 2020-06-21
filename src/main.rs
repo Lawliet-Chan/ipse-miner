@@ -7,13 +7,14 @@ use lazy_static::lazy_static;
 use rocket::Data;
 use std::io::Read;
 use storage::Storage;
+use crate::miner::Miner;
 
 mod config;
 mod miner;
 mod storage;
 
 lazy_static! {
-    pub static ref m: Miner::<storage::ipfs::IpfsStorage> = ();
+    pub static ref m: Miner::<storage::ipfs::IpfsStorage, sp_core::ed25519::Pair> = ();
 }
 
 pub const CONF_PATH: &'static str = "conf_path";
@@ -34,16 +35,18 @@ fn main() {
     let cfg = config::load_conf(conf_fpath);
 
     *m = miner::Miner::new(cfg);
+
+    rocket::ignite().mount("/", routes![new_order, delete_order]).launch();
 }
 
-#[post("/order?id=<num>", data = "<file>")]
-pub fn new_order(num: usize, file: Data) -> Result<(), miner::IpseError> {
+#[post("/order?<id>", data = "<file>")]
+pub fn new_order(id: usize, file: Data) -> Result<(), miner::IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
-    m.write_file(num as u64, data)
+    m.write_file(id as u64, data)
 }
 
-#[delete("/order?id=<num>")]
-pub fn delete_order(num: usize) {
-    m.delete_file(num as u64)
+#[delete("/order?<id>")]
+pub fn delete_order(id: usize) {
+    m.delete_file(id as u64)
 }

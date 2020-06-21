@@ -11,7 +11,7 @@ impl Storage for IpfsStorage {
         async_std::task::block_on(async move {
             let file = Cursor::new(file);
             let res = self.cli.add(file).await?;
-            res.hash
+            Ok(res.hash)
         })
     }
 
@@ -26,6 +26,7 @@ impl Storage for IpfsStorage {
     }
 
     fn delete(&self, key: &str) -> Result<()> {
-        async_std::task::block_on(async move { self.cli.pin_rm(key, false).await })
+        async_std::task::block_on(async move { self.cli.pin_rm(key, false).await })?;
+        Ok(())
     }
 }
