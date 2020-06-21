@@ -1,22 +1,21 @@
 use crate::config::Conf;
 use crate::storage::*;
 use crate::error::IpseError;
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{StorageHasher, Twox64Concat};
 use frame_system::ensure_signed;
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
 use frame_support::traits::Len;
-use sp_core::{storage::StorageKey, twox_128, Pair};
-use sp_keyring::AccountKeyring;
-use sp_runtime::traits::Clear;
-use sp_runtime::SaturatedConversion;
+use sp_core::{storage::StorageKey, twox_128, ed25519::{Pair, Public}};
+use sp_runtime::{SaturatedConversion, AccountId32};
 use sub_runtime::ipse::{BalanceOf, Order};
 use substrate_subxt::{
-    system::System, Call, Client, ClientBuilder, DefaultNodeRuntime as Runtime, Error as SubError,
-    ExtrinsicSuccess,
+    system::System, Call, Client, ClientBuilder, Error as SubError,
 };
+use sub_runtime::ipse::Miner as SubMiner;
+use crate::runtimes::IpseRuntime as Runtime;
 use triehash::ordered_trie_root;
 
 type AccountId = <Runtime as System>::AccountId;
@@ -31,13 +30,13 @@ const DELETE: &str = "delete";
 
 pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
 
-pub struct Miner<S: Storage, P: Pair> {
+pub struct Miner<S: Storage> {
     nickname: &'static str,
     region: &'static str,
     url: &'static str,
     capacity: u64,
     unit_price: u64,
-    signer: P,
+    signer: Pair,
     cli: Client<Runtime>,
     meta_db: Connection,
     storage: S,
@@ -59,7 +58,7 @@ pub struct SectorInfo {
     pub remain: u64,
 }
 
-impl<S: Storage, P: Pair> Miner<S, P> {
+impl<S: Storage> Miner<S> {
     pub fn new(cfg: Conf) -> Self {
         let meta_db = Connection::open(cfg.meta_path).expect("open sqlite failed");
         meta_db
@@ -79,7 +78,7 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             sector  BIGINT AUTO_INCREMENT,\
             remain  BIGINT DEFAULT ?\
             )",
-                &[SECTOR_SIZE],
+                &[SECTOR_SIZE as i64],
             )
             .expect("init SectorInfo table failed");
 
@@ -92,7 +91,8 @@ impl<S: Storage, P: Pair> Miner<S, P> {
                 .unwrap()
         });
         let signer =
-            Pair::from_string(&format!("//{}", cfg.sign), cfg.pwd).expect("make Pair failed");
+            Pair::from_legacy_string(&format!("//{}", cfg.sign), cfg.pwd);
+
         let miner = Self {
             nickname: cfg.nickname,
             region: cfg.region,
@@ -212,20 +212,24 @@ impl<S: Storage, P: Pair> Miner<S, P> {
 
     pub fn exist_miner_on_chain(&self) -> bool {
         let signer = self.signer.clone();
-        let account_id: AccountId =
-            ensure_signed(signer).expect("parse signer into accountID failed");
+        let account_id: AccountId32 =
+            Self::to_account_id(signer);
         let mut storage_key = twox_128(IPSE_MODULE.as_ref()).to_vec();
         storage_key.extend(twox_128(MINERS_STORAGE.as_ref()).to_vec());
         storage_key.extend(
             account_id
-                .as_ref()
                 .encode()
                 .using_encoded(Twox64Concat::hash),
         );
         let miner_key = StorageKey(storage_key);
         async_std::task::block_on(async move {
-            let miner_opt: Option<_> = self.cli.fetch(miner_key, None).await.unwrap();
-            miner_opt.is_some()
+            let miner_opt: Option<Option<SubMiner<Balance>>> = self.cli.fetch(miner_key, None).await.unwrap();
+            if let Some(mi) = miner_opt {
+                mi.is_some()
+            } else {
+                false
+            }
+
         })
     }
 
@@ -268,6 +272,11 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             xt.watch().submit(call).await?;
             Ok(())
         })
+    }
+
+    fn to_account_id(p: Pair) -> AccountId32 {
+        let p = *Public::from(p).as_array_ref();
+        p.into()
     }
 }
 

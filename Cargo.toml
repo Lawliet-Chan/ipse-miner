@@ -24,6 +24,7 @@ futures = "0.3"
 sp-keyring = { version = "2.0.0-alpha.5", package = "sp-keyring" }
 frame-support = { version = "2.0.0-alpha.4", package = "frame-support" }
 frame-system = { version = "2.0.0-alpha.4", package = "frame-system" }
+pallet-indices = { version = "2.0.0-alpha.4", package = "pallet-indices" }
 sp-core = { version = "2.0.0-alpha.5", package = "sp-core" }
 sp-runtime = { version = "2.0.0-alpha.5", package = "sp-runtime" }
 sub-runtime = { git = "https://github.com/IPSE-TEAM/ipse-core", package = "node-runtime", version = "2.0.0-alpha.4", branch = "ipse"}

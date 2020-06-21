@@ -14,9 +14,10 @@ mod config;
 mod miner;
 mod error;
 mod storage;
+mod runtimes;
 
 lazy_static! {
-    pub static ref m: Miner::<storage::ipfs::IpfsStorage, sp_core::ed25519::Pair> = ();
+    pub static ref m: Miner::<storage::ipfs::IpfsStorage> = ();
 }
 
 pub const CONF_PATH: &'static str = "conf_path";

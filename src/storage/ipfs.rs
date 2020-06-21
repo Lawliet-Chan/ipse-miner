@@ -23,7 +23,7 @@ impl Storage for IpfsStorage {
                 .cat(key)
                 .map_ok(|chunk| chunk.to_vec())
                 .try_concat()
-                .await
+                .await.map_err(|e| From::from(e))
         })
     }
 
