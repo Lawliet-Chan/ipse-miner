@@ -4,20 +4,20 @@ use codec::{Decode, Encode};
 use frame_support::{StorageHasher, Twox64Concat};
 use frame_system::ensure_signed;
 use keccak_hasher::KeccakHasher;
-use rusqlite::{Connection, params, Transaction};
+use rusqlite::{params, Connection, Transaction};
 
+use frame_support::traits::Len;
 use sp_core::{storage::StorageKey, twox_128, Pair};
 use sp_keyring::AccountKeyring;
+use sp_runtime::traits::Clear;
 use sp_runtime::SaturatedConversion;
+use std::usize::{from_be_bytes, to_be_bytes};
 use sub_runtime::ipse::{BalanceOf, Order};
 use substrate_subxt::{
     system::System, Call, Client, ClientBuilder, DefaultNodeRuntime as Runtime, Error as SubError,
     ExtrinsicSuccess,
 };
 use triehash::ordered_trie_root;
-use std::usize::{from_be_bytes, to_be_bytes};
-use sp_runtime::traits::Clear;
-use frame_support::traits::Len;
 
 type AccountId = <Runtime as System>::AccountId;
 type Balance = BalanceOf<Runtime>;
@@ -62,17 +62,25 @@ pub struct SectorInfo {
 impl<S: Storage, P: Pair> Miner<S, P> {
     pub fn new(cfg: Conf) -> Self {
         let meta_db = Connection::open(cfg.meta_path).expect("open sqlite failed");
-        meta_db.execute("CREATE TABLE IF NOT EXISTS data_info (\
+        meta_db
+            .execute(
+                "CREATE TABLE IF NOT EXISTS data_info (\
             order  BIGINT PRIMARY KEY,\
             sector BIGINT NOT NULL,\
             length BIGINT NOT NULL,\
             file_url TEXT NOT NULL\
-            )", params![])
+            )",
+                params![],
+            )
             .expect("init DataInfo table failed");
-        meta_db.execute("CREATE TABLE IF NOT EXISTS sector_info (\
+        meta_db
+            .execute(
+                "CREATE TABLE IF NOT EXISTS sector_info (\
             sector  BIGINT AUTO_INCREMENT,\
             remain  BIGINT DEFAULT ?\
-            )", &[SECTOR_SIZE])
+            )",
+                &[SECTOR_SIZE],
+            )
             .expect("init SectorInfo table failed");
 
         let storage = new_storage::<ipfs::IpfsStorage>(cfg.ipfs_url);
@@ -101,15 +109,20 @@ impl<S: Storage, P: Pair> Miner<S, P> {
         miner
     }
 
-    pub fn write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError>{
+    pub fn write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError> {
         let f_len = file.len();
 
         let file_url = self.storage.write(file)?;
 
-        let mut stmt = self.meta_db.prepare("SELECT sector FROM sector_info WHERE remain >= :size")?;
+        let mut stmt = self
+            .meta_db
+            .prepare("SELECT sector FROM sector_info WHERE remain >= :size")?;
         let rows = stmt.query_map_named(&[(":size", &f_len)], |row| row.get(0))?;
         let sector_to_fill: u64 = if rows.len() == 0 {
-            self.meta_db.execute("INSERT INTO sector_info (remain) VALUES (?1)", &[SECTOR_SIZE])?;
+            self.meta_db.execute(
+                "INSERT INTO sector_info (remain) VALUES (?1)",
+                &[SECTOR_SIZE],
+            )?;
             let mut stmt = self.meta_db.prepare("SELECT COUNT(*) FROM sector_info")?;
             let count_rows = stmt.query_map_named(params![], |row| row.get(0))?;
             count_rows[0]?
@@ -121,20 +134,44 @@ impl<S: Storage, P: Pair> Miner<S, P> {
             order: id,
             sector: sector_to_fill,
             length: f_len as u64,
-            file_url
+            file_url,
         };
 
-        self.meta_db.execute("INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)", params![data_info.order, data_info.sector, data_info.length, data_info.file_url])?;
-        self.meta_db.execute("UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2", &[f_len, sector_to_fill])?;
+        self.meta_db.execute(
+            "INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                data_info.order,
+                data_info.sector,
+                data_info.length,
+                data_info.file_url
+            ],
+        )?;
+        self.meta_db.execute(
+            "UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2",
+            &[f_len, sector_to_fill],
+        )?;
         Ok(())
     }
 
-    pub fn delete(&self, id: u64) -> Result<(), IpseError>{
-        let mut stmt = self.meta_db.prepare("SELECT file_url FROM data_info WHERE order = :order")?;
-        let rows = stmt.query_map_named(&[(":order", &id)], |row| row.get(0))?;
-        let file_url: String = rows[0];
-        self.storage.delete(file_url.as_str())?;
-        self.meta_db.execute("UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2")
+    pub fn delete(&self, id: u64) -> Result<(), IpseError> {
+        let mut stmt = self
+            .meta_db
+            .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
+        let rows = stmt.query_map_named(&[(":order", &id)], |row| {
+            Ok(DataInfo {
+                order: id,
+                sector: row.get(0)?,
+                length: row.get(1)?,
+                file_url: row.get(2)?,
+            })
+        })?;
+        let data_info: DataInfo = rows[0]?;
+        self.storage.delete(data_info.file_url.as_str())?;
+        self.meta_db.execute(
+            "UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2",
+            &[data_info.length, data_info.sector],
+        )?;
+        Ok(())
     }
 
     fn register_miner(&self) {
@@ -219,9 +256,7 @@ impl<S: Storage, P: Pair> Miner<S, P> {
     }
 
     fn call_delete(&self, id: usize) -> Result<(), SubError> {
-        let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs{
-            id: id as u64,
-        });
+        let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs { id: id as u64 });
         self.async_call_chain(call)
     }
 
