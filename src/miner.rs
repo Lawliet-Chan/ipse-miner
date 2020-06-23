@@ -3,7 +3,6 @@ use crate::storage::*;
 use crate::error::IpseError;
 use codec::Encode;
 use frame_support::{StorageHasher, Twox64Concat};
-use frame_system::ensure_signed;
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 

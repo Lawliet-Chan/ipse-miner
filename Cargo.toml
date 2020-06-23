@@ -29,3 +29,4 @@ sp-core = { version = "2.0.0-alpha.5", package = "sp-core" }
 sp-runtime = { version = "2.0.0-alpha.5", package = "sp-runtime" }
 sub-runtime = { git = "https://github.com/IPSE-TEAM/ipse-core", package = "node-runtime", version = "2.0.0-alpha.4", branch = "ipse"}
 codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive", "full"] }
+pallet-balances = "2.0.0-alpha.4"

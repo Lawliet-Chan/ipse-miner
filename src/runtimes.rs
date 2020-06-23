@@ -46,10 +46,11 @@ impl Timestamp for IpseRuntime {
 }
 
 impl Balances for IpseRuntime {
-    type Balance = u128;
+    //type Balance = u128;
+    type Balance = <Self as Balances>::Balance;
 }
 
-// impl IpseTrait for IpseRuntime {
-//     type Event = ();
-//     type Currency = ();
-// }
+impl IpseTrait for IpseRuntime {
+    type Event = <Self as System>::Event;
+    type Currency = <Self as Balances>::Balance;
+}
