@@ -14,7 +14,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 async-std = "1.2.0"
 lazy_static = "1.4.0"
-substrate-subxt = "0.8.0"
+substrate-subxt = "0.6.0"
 triehash = "0.8.3"
 keccak-hasher = "0.15.2"
 rusqlite = { version = "0.21.0", features = ["bundled"] }
