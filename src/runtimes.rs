@@ -11,15 +11,18 @@ use sp_runtime::{
 };
 use frame_support::Parameter;
 
-use sub_runtime::ipse::Trait as IpseTrait;
 use substrate_subxt::{
     balances::{
         AccountData,
         Balances,
     },
+    module,
     system::System,
 };
 use sp_runtime::traits::{AtLeast32Bit, Scale};
+
+#[module]
+pub trait Ipse: System + Balances + Timestamp {}
 
 pub trait Timestamp: System {
     type Moment: Parameter + Default + AtLeast32Bit
@@ -28,6 +31,10 @@ pub trait Timestamp: System {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IpseRuntime;
+
+impl Ipse for IpseRuntime {
+
+}
 
 impl System for IpseRuntime {
     type Index = u32;
@@ -50,7 +57,7 @@ impl Balances for IpseRuntime {
     type Balance = <Self as Balances>::Balance;
 }
 
-impl IpseTrait for IpseRuntime {
-    type Event = <Self as System>::Event;
-    type Currency = <Self as Balances>::Balance;
-}
+// impl IpseTrait for IpseRuntime {
+//     type Event = ();
+//     type Currency = pallet_balances::Module<Self>;
+// }

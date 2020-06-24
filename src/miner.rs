@@ -9,16 +9,16 @@ use rusqlite::{params, Connection};
 use frame_support::traits::Len;
 use sp_core::{storage::StorageKey, twox_128, ed25519::{Pair, Public}};
 use sp_runtime::{SaturatedConversion, AccountId32};
-use sub_runtime::ipse::{BalanceOf, Order};
+use sub_runtime::ipse::{Order};
 use substrate_subxt::{
-    system::System, Call, Client, ClientBuilder, Error as SubError,
+    system::System, Call, Client, ClientBuilder, Error as SubError, balances::Balances,
 };
 use sub_runtime::ipse::Miner as SubMiner;
 use crate::runtimes::IpseRuntime as Runtime;
 use triehash::ordered_trie_root;
 
 type AccountId = <Runtime as System>::AccountId;
-type Balance = BalanceOf<Runtime>;
+type Balance = <Runtime as Balances>::Balance;
 
 const IPSE_MODULE: &str = "Ipse";
 const ORDERS_STORAGE: &str = "Orders";
