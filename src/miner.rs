@@ -81,21 +81,24 @@ impl<S: Storage> Miner<S> {
             )
             .expect("init SectorInfo table failed");
 
-        let storage = new_storage(cfg.ipfs_url);
+        let storage = new_storage(cfg.ipfs_url.as_str());
         let cli = async_std::task::block_on(async move {
             ClientBuilder::<Runtime>::new()
-                .set_url(cfg.chain_url)
+                .set_url(cfg.chain_url.as_str())
                 .build()
                 .await
                 .unwrap()
         });
+        let pwd = if let Some(pwd) = cfg.pwd {
+            Some(pwd.as_str())
+        } else { None };
         let signer =
-            Pair::from_legacy_string(&format!("//{}", cfg.sign), cfg.pwd);
+            Pair::from_legacy_string(&format!("//{}", cfg.sign), pwd);
 
         let miner = Self {
-            nickname: cfg.nickname,
-            region: cfg.region,
-            url: cfg.url,
+            nickname: cfg.nickname.as_str(),
+            region: cfg.region.as_str(),
+            url: cfg.url.as_str(),
             capacity: cfg.capacity,
             unit_price: cfg.unit_price,
             signer,
