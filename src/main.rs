@@ -3,12 +3,12 @@
 #[macro_use]
 extern crate rocket;
 use clap::{App, Arg};
-use lazy_static::lazy_static;
 use rocket::Data;
 use std::io::Read;
-use storage::Storage;
+use storage::{Storage, ipfs::IpfsStorage};
 use crate::miner::Miner;
 use crate::error::IpseError;
+use once_cell::sync::Lazy;
 
 mod config;
 mod miner;
@@ -16,13 +16,7 @@ mod error;
 mod storage;
 mod runtimes;
 
-lazy_static! {
-    pub static ref m: Miner::<storage::ipfs::IpfsStorage> = ();
-}
-
-pub const CONF_PATH: &'static str = "conf_path";
-
-fn main() {
+static MINER: Lazy<Miner<IpfsStorage>> = Lazy::new(|| {
     let matches = App::new("Ipse Miner")
         .version("0.1.0")
         .about("Mining for Ipse chain")
@@ -36,8 +30,12 @@ fn main() {
     let conf_fpath = matches.value_of(CONF_PATH).unwrap();
 
     let cfg = config::load_conf(conf_fpath);
+    miner::Miner::<IpfsStorage>::new(cfg)
+});
 
-    *m = miner::Miner::new(cfg);
+pub const CONF_PATH: &'static str = "conf_path";
+
+fn main() {
 
     rocket::ignite().mount("/", routes![new_order, delete_order]).launch();
 }
@@ -46,10 +44,10 @@ fn main() {
 pub fn new_order(id: usize, file: Data) -> Result<(), IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
-    m.write_file(id as u64, data)
+    MINER.write_file(id as u64, data)
 }
 
 #[delete("/order?<id>")]
-pub fn delete_order(id: usize) {
-    m.delete_file(id as u64)
+pub fn delete_order(id: usize) -> Result<(), IpseError> {
+    MINER.delete_file(id as u64)
 }

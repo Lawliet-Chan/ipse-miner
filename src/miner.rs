@@ -155,7 +155,7 @@ impl<S: Storage> Miner<S> {
         Ok(())
     }
 
-    pub fn delete(&self, id: u64) -> Result<(), IpseError> {
+    pub fn delete_file(&self, id: u64) -> Result<(), IpseError> {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
