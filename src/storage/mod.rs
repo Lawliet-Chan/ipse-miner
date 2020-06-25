@@ -3,12 +3,12 @@ pub(crate) mod ipfs;
 use http::Uri;
 use ipfs::IpfsStorage;
 use ipfs_api::IpfsClient;
-use std::io::Result;
+use crate::error::IpseError;
 
 pub trait Storage {
-    fn write(&self, file: Vec<u8>) -> Result<String>;
-    fn read(&self, key: &str) -> Result<Vec<u8>>;
-    fn delete(&self, key: &str) -> Result<()>;
+    fn write(&self, file: Vec<u8>) -> Result<String, IpseError>;
+    fn read(&self, key: &str) -> Result<Vec<u8>, IpseError>;
+    fn delete(&self, key: &str) -> Result<(), IpseError>;
 }
 
 pub fn new_storage<S: Storage>(ipfs_url: &'static str) -> S {
