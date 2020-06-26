@@ -5,7 +5,6 @@ extern crate rocket;
 use clap::{App, Arg};
 use rocket::Data;
 use std::io::Read;
-use storage::{Storage, ipfs::IpfsStorage};
 use crate::miner::Miner;
 use crate::error::IpseError;
 use once_cell::sync::Lazy;
@@ -16,7 +15,7 @@ mod error;
 mod storage;
 mod runtimes;
 
-static MINER: Lazy<Miner<IpfsStorage>> = Lazy::new(|| {
+static MINER: Lazy<Miner> = Lazy::new(|| {
     let matches = App::new("Ipse Miner")
         .version("0.1.0")
         .about("Mining for Ipse chain")
@@ -30,7 +29,7 @@ static MINER: Lazy<Miner<IpfsStorage>> = Lazy::new(|| {
     let conf_fpath = matches.value_of(CONF_PATH).unwrap();
 
     let cfg = config::load_conf(conf_fpath);
-    miner::Miner::<IpfsStorage>::new(cfg)
+    miner::Miner::new(cfg)
 });
 
 pub const CONF_PATH: &'static str = "conf_path";

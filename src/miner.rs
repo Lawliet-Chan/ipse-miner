@@ -6,7 +6,6 @@ use frame_support::{StorageHasher, Twox64Concat};
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
-use frame_support::traits::Len;
 use sp_core::{storage::StorageKey, twox_128, ed25519::{Pair, Public}};
 use sp_runtime::{SaturatedConversion, AccountId32};
 use sub_runtime::ipse::{Order};
@@ -16,6 +15,7 @@ use substrate_subxt::{
 use sub_runtime::ipse::Miner as SubMiner;
 //use crate::runtimes::IpseRuntime as Runtime;
 use triehash::ordered_trie_root;
+use crate::storage::ipfs::IpfsStorage;
 
 type AccountId = <Runtime as System>::AccountId;
 type Balance = <Runtime as Balances>::Balance;
@@ -29,7 +29,7 @@ const DELETE: &str = "delete";
 
 pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
 
-pub struct Miner<S: Storage> {
+pub struct Miner {
     nickname: &'static str,
     region: &'static str,
     url: &'static str,
@@ -38,7 +38,7 @@ pub struct Miner<S: Storage> {
     signer: Pair,
     cli: Client<Runtime>,
     meta_db: Connection,
-    storage: S,
+    storage: IpfsStorage,
 }
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ pub struct SectorInfo {
     pub remain: u64,
 }
 
-impl<S: Storage> Miner<S> {
+impl Miner {
     pub fn new(cfg: Conf) -> Self {
         let meta_db = Connection::open(cfg.meta_path).expect("open sqlite failed");
         meta_db
@@ -81,7 +81,7 @@ impl<S: Storage> Miner<S> {
             )
             .expect("init SectorInfo table failed");
 
-        let storage = new_storage(cfg.ipfs_url.as_str());
+        let storage  = new_ipfs_storage(cfg.ipfs_url.as_str());
         let cli = async_std::task::block_on(async move {
             ClientBuilder::<Runtime>::new()
                 .set_url(cfg.chain_url.as_str())

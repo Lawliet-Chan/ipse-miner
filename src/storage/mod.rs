@@ -3,6 +3,7 @@ pub(crate) mod ipfs;
 use http::Uri;
 use ipfs::IpfsStorage;
 use ipfs_api::IpfsClient;
+use ipfs_api::TryFromUri;
 use crate::error::IpseError;
 
 pub trait Storage {
@@ -11,7 +12,7 @@ pub trait Storage {
     fn delete(&self, key: &str) -> Result<(), IpseError>;
 }
 
-pub fn new_storage<S: Storage>(ipfs_url: &'static str) -> S {
+pub fn new_ipfs_storage(ipfs_url: &'static str) -> IpfsStorage {
     let uri = ipfs_url.parse::<Uri>().expect("url parse failed");
     let cli = IpfsClient::build_with_base_uri(uri);
     IpfsStorage { cli }

@@ -14,7 +14,7 @@ impl From<std::io::Error> for IpseError {
 
 impl From<rusqlite::Error> for IpseError {
     fn from(err: rusqlite::Error) -> Self {
-        IpseError::rusqlite(err)
+        IpseError::Sqlite(err)
     }
 }
 
