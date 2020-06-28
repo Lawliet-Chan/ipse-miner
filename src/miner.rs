@@ -120,7 +120,7 @@ impl Miner {
             .meta_db
             .prepare("SELECT sector FROM sector_info WHERE remain >= :size")?;
         let rows = stmt.query_map_named(&[(":size", &f_len)], |row| row.get(0))?;
-        let sector_to_fill: u64 = if rows.len() == 0 {
+        let sector_to_fill: u64 = if rows.count() == 0 {
             self.meta_db.execute(
                 "INSERT INTO sector_info (remain) VALUES (?1)",
                 &[SECTOR_SIZE],
@@ -132,20 +132,13 @@ impl Miner {
             rows[0]?
         };
 
-        let data_info = DataInfo {
-            order: id,
-            sector: sector_to_fill,
-            length: f_len as u64,
-            file_url,
-        };
-
         self.meta_db.execute(
             "INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)",
             params![
-                data_info.order,
-                data_info.sector,
-                data_info.length,
-                data_info.file_url
+                id,
+                sector_to_fill,
+                f_len,
+                file_url,
             ],
         )?;
         self.meta_db.execute(
