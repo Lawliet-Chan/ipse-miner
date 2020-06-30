@@ -13,6 +13,7 @@ mod config;
 mod miner;
 mod error;
 mod storage;
+mod calls;
 
 static MINER: Lazy<Miner> = Lazy::new(|| {
     let matches = App::new("Ipse Miner")

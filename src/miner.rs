@@ -6,26 +6,20 @@ use frame_support::{StorageHasher, Twox64Concat};
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
-use sp_core::{storage::StorageKey, twox_128, ed25519::{Pair, Public}};
+use sp_core::{ sr25519::{Pair, Public}};
 use sp_runtime::{SaturatedConversion, AccountId32};
 use sub_runtime::ipse::{Order};
 use substrate_subxt::{
-    system::System, Call, Client, ClientBuilder, Error as SubError, balances::Balances, DefaultNodeRuntime as Runtime,
+    Client, ClientBuilder, Error as SubError,
 };
 use sub_runtime::ipse::Miner as SubMiner;
-//use crate::runtimes::IpseRuntime as Runtime;
 use triehash::ordered_trie_root;
 use crate::storage::ipfs::IpfsStorage;
-
-type AccountId = <Runtime as System>::AccountId;
-type Balance = <Runtime as Balances>::Balance;
-
-const IPSE_MODULE: &str = "Ipse";
-const ORDERS_STORAGE: &str = "Orders";
-const MINERS_STORAGE: &str = "Miners";
-const REGISTER_MINER: &str = "register_miner";
-const CONFIRM_ORDER: &str = "confirm_order";
-const DELETE: &str = "delete";
+use crate::calls::{
+    IpseRuntime as Runtime, AccountId, Balance,
+    MinersStoreExt, OrdersStoreExt,
+    RegisterMinerCallExt, ConfirmOrderCallExt, DeleteCallExt
+};
 
 pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
 
@@ -112,6 +106,21 @@ impl Miner {
     }
 
     pub fn write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError> {
+        let order_opt = self.get_order_from_chain(id as usize)?;
+        if let Some(order) = order_opt {
+            let merkle_root_on_chain = order.merkle_root;
+            if self.check_merkle_root(&file, merkle_root_on_chain) {
+                self.do_write_file(id, file)
+            }
+        }
+        Ok(())
+    }
+
+    pub fn delete_file(&self, id: u64) -> Result<(), IpseError> {
+        self.do_delete_file(id)
+    }
+
+    fn do_write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError> {
         let f_len = file.len();
 
         let file_url = self.storage.write(file)?;
@@ -148,7 +157,7 @@ impl Miner {
         Ok(())
     }
 
-    pub fn delete_file(&self, id: u64) -> Result<(), IpseError> {
+    fn do_delete_file(&self, id: u64) -> Result<(), IpseError> {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
@@ -171,13 +180,13 @@ impl Miner {
     }
 
     fn register_miner(&self) {
-        if !self.exist_miner_on_chain() {
-            self.call_register_miner()
-                .expect("register miner to chain failed")
-        }
+        //if !self.exist_miner_on_chain() {
+        self.call_register_miner()
+            .expect("register miner to chain failed")
+        //}
     }
 
-    fn check_merkle_root(&self, file: Vec<u8>, merkle_root_on_chain: [u8; 32]) -> bool {
+    fn check_merkle_root(&self, file: &Vec<u8>, merkle_root_on_chain: [u8; 32]) -> bool {
         let mut iter = file.chunks(64);
         let mut chunks = Vec::new();
         while let Some(chunk) = iter.next() {
@@ -191,80 +200,50 @@ impl Miner {
         &self,
         id: usize,
     ) -> Result<Option<&Order<AccountId, Balance>>, SubError> {
-        let mut storage_key = twox_128(IPSE_MODULE.as_ref()).to_vec();
-        storage_key.extend(twox_128(ORDERS_STORAGE.as_ref()).to_vec());
-        let order_key = StorageKey(storage_key);
         async_std::task::block_on(async move {
-            let orders_opt: Option<Vec<Order<AccountId, Balance>>> =
-                self.cli.fetch(order_key, None).await?;
-            if let Some(orders) = orders_opt {
-                Ok(orders.get(id))
-            } else {
-                Ok(None)
-            }
+            let orders: Vec<Order<AccountId, Balance>> = self.cli.order(None).await?;
+            Ok(orders.get(id))
         })
     }
 
-    pub fn exist_miner_on_chain(&self) -> bool {
-        let signer = self.signer.clone();
-        let account_id: AccountId32 =
-            Self::to_account_id(signer);
-        let mut storage_key = twox_128(IPSE_MODULE.as_ref()).to_vec();
-        storage_key.extend(twox_128(MINERS_STORAGE.as_ref()).to_vec());
-        storage_key.extend(
-            account_id
-                .encode()
-                .using_encoded(Twox64Concat::hash),
-        );
-        let miner_key = StorageKey(storage_key);
-        async_std::task::block_on(async move {
-            let miner_opt: Option<Option<SubMiner<Balance>>> = self.cli.fetch(miner_key, None).await.unwrap();
-            if let Some(mi) = miner_opt {
-                mi.is_some()
-            } else {
-                false
-            }
-
-        })
-    }
+    // pub fn exist_miner_on_chain(&self) -> bool {
+    //     let signer = self.signer.clone();
+    //     let account_id: AccountId32 =
+    //         Self::to_account_id(signer);
+    //     async_std::task::block_on(async move {
+    //
+    //     })
+    // }
 
     fn call_register_miner(&self) -> Result<(), SubError> {
-        let call = Call::new(
-            IPSE_MODULE,
-            REGISTER_MINER,
-            RegisterArgs {
-                nickname: self.nickname.as_bytes().to_vec(),
-                region: self.region.as_bytes().to_vec(),
-                url: self.url.as_bytes().to_vec(),
-                capacity: self.capacity,
-                unit_price: self.unit_price.saturated_into::<Balance>(),
-            },
-        );
-        self.async_call_chain(call)
+        async_std::task::block_on(async move {
+            let signer = self.signer.clone();
+            self.cli.register_miner(&signer,
+                                    self.nickname.as_bytes().to_vec(),
+                                    self.region.as_bytes().to_vec(),
+                                    self.url.as_bytes().to_vec(),
+                                    self.capacity,
+                                    self.unit_price.saturated_into::<Balance>(),
+            ).await?;
+            Ok(())
+        })
     }
 
     fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError> {
-        let call = Call::new(
-            IPSE_MODULE,
-            CONFIRM_ORDER,
-            ConfirmArgs {
-                id: id as u64,
-                url: url.into_bytes(),
-            },
-        );
-        self.async_call_chain(call)
+        async_std::task::block_on(async move {
+            let signer = self.signer.clone();
+            self.cli.confirm_order(&signer,
+                                   id as u64,
+                                   url.into_bytes()
+            ).await?;
+            Ok(())
+        })
     }
 
     fn call_delete(&self, id: usize) -> Result<(), SubError> {
-        let call = Call::new(IPSE_MODULE, DELETE, DeleteArgs { id: id as u64 });
-        self.async_call_chain(call)
-    }
-
-    fn async_call_chain<C: Encode>(&self, call: Call<C>) -> Result<(), SubError> {
         async_std::task::block_on(async move {
             let signer = self.signer.clone();
-            let xt = self.cli.xt(signer, None).await?;
-            xt.watch().submit(call).await?;
+            self.cli.delete(&signer, id as u64).await?;
             Ok(())
         })
     }
@@ -273,25 +252,4 @@ impl Miner {
         let p = *Public::from(p).as_array_ref();
         p.into()
     }
-}
-
-
-#[derive(Encode)]
-pub struct RegisterArgs {
-    pub nickname: Vec<u8>,
-    pub region: Vec<u8>,
-    pub url: Vec<u8>,
-    pub capacity: u64,
-    pub unit_price: Balance,
-}
-
-#[derive(Encode)]
-pub struct ConfirmArgs {
-    pub id: u64,
-    pub url: Vec<u8>,
-}
-
-#[derive(Encode)]
-pub struct DeleteArgs {
-    pub id: u64,
 }
