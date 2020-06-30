@@ -7,10 +7,11 @@ use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
 use sp_core::{ sr25519::{Pair, Public}};
+use sp_keyring::AccountKeyring;
 use sp_runtime::{SaturatedConversion, AccountId32};
 use sub_runtime::ipse::{Order};
 use substrate_subxt::{
-    Client, ClientBuilder, Error as SubError,
+    Client, ClientBuilder, Error as SubError, PairSigner,
 };
 use sub_runtime::ipse::Miner as SubMiner;
 use triehash::ordered_trie_root;
@@ -29,7 +30,7 @@ pub struct Miner {
     url: &'static str,
     capacity: u64,
     unit_price: u64,
-    signer: Pair,
+    pair_signer: PairSigner<Runtime, Pair>,
     cli: Client<Runtime>,
     meta_db: Connection,
     storage: IpfsStorage,
@@ -86,8 +87,8 @@ impl Miner {
         let pwd = if let Some(pwd) = cfg.pwd {
             Some(pwd.as_str())
         } else { None };
-        let signer =
-            Pair::from_legacy_string(&format!("//{}", cfg.sign), pwd);
+        let pair_signer = PairSigner::new(AccountKeyring::Alice.pair());
+            //Pair::from_legacy_string(&format!("//{}", cfg.sign), pwd);
 
         let miner = Self {
             nickname: cfg.nickname.as_str(),
@@ -95,7 +96,7 @@ impl Miner {
             url: cfg.url.as_str(),
             capacity: cfg.capacity,
             unit_price: cfg.unit_price,
-            signer,
+            pair_signer,
             cli,
             meta_db,
             storage,
@@ -110,7 +111,7 @@ impl Miner {
         if let Some(order) = order_opt {
             let merkle_root_on_chain = order.merkle_root;
             if self.check_merkle_root(&file, merkle_root_on_chain) {
-                self.do_write_file(id, file)
+                self.do_write_file(id, file)?;
             }
         }
         Ok(())
@@ -152,7 +153,7 @@ impl Miner {
         )?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2",
-            &[f_len, sector_to_fill],
+            &[f_len, sector_to_fill as usize],
         )?;
         Ok(())
     }
@@ -201,13 +202,13 @@ impl Miner {
         id: usize,
     ) -> Result<Option<&Order<AccountId, Balance>>, SubError> {
         async_std::task::block_on(async move {
-            let orders: Vec<Order<AccountId, Balance>> = self.cli.order(None).await?;
+            let orders: Vec<Order<AccountId, Balance>> = self.cli.orders(None).await?;
             Ok(orders.get(id))
         })
     }
 
     // pub fn exist_miner_on_chain(&self) -> bool {
-    //     let signer = self.signer.clone();
+    //     let signer = PairSigner::new(AccountKeyring::Alice.pair());
     //     let account_id: AccountId32 =
     //         Self::to_account_id(signer);
     //     async_std::task::block_on(async move {
@@ -217,13 +218,14 @@ impl Miner {
 
     fn call_register_miner(&self) -> Result<(), SubError> {
         async_std::task::block_on(async move {
-            let signer = self.signer.clone();
-            self.cli.register_miner(&signer,
-                                    self.nickname.as_bytes().to_vec(),
-                                    self.region.as_bytes().to_vec(),
-                                    self.url.as_bytes().to_vec(),
-                                    self.capacity,
-                                    self.unit_price.saturated_into::<Balance>(),
+            let signer = PairSigner::new(AccountKeyring::Alice.pair());
+            self.cli.register_miner(
+                &signer,
+                self.nickname.as_bytes().to_vec(),
+                self.region.as_bytes().to_vec(),
+                self.url.as_bytes().to_vec(),
+                self.capacity,
+                self.unit_price.saturated_into::<Balance>(),
             ).await?;
             Ok(())
         })
@@ -231,10 +233,11 @@ impl Miner {
 
     fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError> {
         async_std::task::block_on(async move {
-            let signer = self.signer.clone();
-            self.cli.confirm_order(&signer,
-                                   id as u64,
-                                   url.into_bytes()
+            let signer = PairSigner::new(AccountKeyring::Alice.pair());
+            self.cli.confirm_order(
+                &signer,
+                id as u64,
+                url.into_bytes()
             ).await?;
             Ok(())
         })
@@ -242,14 +245,9 @@ impl Miner {
 
     fn call_delete(&self, id: usize) -> Result<(), SubError> {
         async_std::task::block_on(async move {
-            let signer = self.signer.clone();
+            let signer = PairSigner::new(AccountKeyring::Alice.pair());
             self.cli.delete(&signer, id as u64).await?;
             Ok(())
         })
-    }
-
-    fn to_account_id(p: Pair) -> AccountId32 {
-        let p = *Public::from(p).as_array_ref();
-        p.into()
     }
 }

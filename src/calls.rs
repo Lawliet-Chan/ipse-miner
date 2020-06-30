@@ -62,7 +62,7 @@ pub struct DeleteCall<T: Ipse> {
 }
 
 #[module]
-pub trait Ipse: System + Balances + Timestamp{
+pub trait Ipse: System + Balances {
 
 }
 
