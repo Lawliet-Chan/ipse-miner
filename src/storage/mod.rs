@@ -12,7 +12,7 @@ pub trait Storage {
     fn delete(&self, key: &str) -> Result<(), IpseError>;
 }
 
-pub fn new_ipfs_storage(ipfs_url: &'static str) -> IpfsStorage {
+pub fn new_ipfs_storage(ipfs_url: String) -> IpfsStorage {
     let uri = ipfs_url.parse::<Uri>().expect("url parse failed");
     let cli = IpfsClient::build_with_base_uri(uri);
     IpfsStorage { cli }

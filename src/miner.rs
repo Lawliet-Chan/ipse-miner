@@ -18,13 +18,14 @@ use crate::calls::{
     OrdersStoreExt, RegisterMinerCallExt,
     ConfirmOrderCallExt, DeleteCallExt
 };
+use std::borrow::{BorrowMut};
 
 pub const SECTOR_SIZE: i64 = 128 * 1024 * 1024;
 
 pub struct Miner {
-    nickname: &'static str,
-    region: &'static str,
-    url: &'static str,
+    nickname: String,
+    region: String,
+    url: String,
     capacity: i64,
     unit_price: i64,
     cli: Client<Runtime>,
@@ -50,7 +51,7 @@ pub struct SectorInfo {
 
 impl Miner {
     pub fn new(cfg: Conf) -> Self {
-        let meta_db = Connection::open(cfg.meta_path).expect("open sqlite failed");
+        let meta_db = Connection::open(cfg.clone().meta_path).expect("open sqlite failed");
         meta_db
             .execute(
                 "CREATE TABLE IF NOT EXISTS data_info (\
@@ -72,19 +73,20 @@ impl Miner {
             )
             .expect("init SectorInfo table failed");
 
-        let storage  = new_ipfs_storage(cfg.ipfs_url.as_str());
-        let cli = async_std::task::block_on(async move {
+        let storage  = new_ipfs_storage(cfg.clone().ipfs_url);
+        let chain_url = cfg.clone().chain_url;
+        let cli = async_std::task::block_on(async {
             ClientBuilder::<Runtime>::new()
-                .set_url(cfg.chain_url.as_str())
+                .set_url(chain_url)
                 .build()
                 .await
                 .unwrap()
         });
 
         let miner = Self {
-            nickname: cfg.nickname.as_str(),
-            region: cfg.region.as_str(),
-            url: cfg.url.as_str(),
+            nickname: cfg.nickname,
+            region: cfg.region,
+            url: cfg.url,
             capacity: cfg.capacity as i64,
             unit_price: cfg.unit_price as i64,
             cli,
@@ -119,17 +121,18 @@ impl Miner {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector FROM sector_info WHERE remain >= :size")?;
-        let rows = stmt.query_map_named(&[(":size", &(f_len as isize))], |row| row.get(0))?;
+        let mut rows = stmt.query_map_named(&[(":size", &(f_len as isize))], |row| row.get(0))?;
+        let count = rows.borrow_mut().next().unwrap_or(Ok(0))?;
         let sector_to_fill: i64 = if rows.count() == 0 {
             self.meta_db.execute(
                 "INSERT INTO sector_info (remain) VALUES (?1)",
                 &[SECTOR_SIZE],
             )?;
             let mut stmt = self.meta_db.prepare("SELECT COUNT(*) FROM sector_info")?;
-            let count_rows = stmt.query_map(params![], |row| row.get(0))?;
-            count_rows[0]?
+            let mut count_rows = stmt.query_map(params![], |row| row.get(0))?;
+            count_rows.next().unwrap_or(Ok(0))?
         } else {
-            rows[0]?
+            count
         };
 
         self.meta_db.execute(
@@ -152,7 +155,7 @@ impl Miner {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
-        let rows = stmt.query_map_named(&[(":order", &(id  ))], |row| {
+        let mut rows = stmt.query_map_named(&[(":order", &(id  ))], |row| {
             Ok(DataInfo {
                 order: id,
                 sector: row.get(0)?,
@@ -160,7 +163,11 @@ impl Miner {
                 file_url: row.get(2)?,
             })
         })?;
-        let data_info: DataInfo = rows[0]?;
+        let row_opt = rows.next();
+        let data_info: DataInfo = if let Some(row) = row_opt {
+            row?
+        } else { return Ok(())};
+
         let file_url = "/ipfs/".to_string() + data_info.file_url.as_str();
         self.storage.delete(file_url.as_str())?;
         self.meta_db.execute(
@@ -191,9 +198,10 @@ impl Miner {
         &self,
         id: usize,
     ) -> Result<Option<&Order<AccountId, Balance>>, SubError> {
-        async_std::task::block_on(async move {
+        async_std::task::block_on(async {
             let orders: Vec<Order<AccountId, Balance>> = self.cli.orders(None).await?;
-            Ok(orders.get(id))
+            let order = orders.get(id);
+            Ok(order)
         })
     }
 

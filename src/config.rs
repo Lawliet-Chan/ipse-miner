@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use std::fs;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conf {
     pub nickname: String,
     pub region: String,
