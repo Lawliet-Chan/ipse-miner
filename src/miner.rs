@@ -1,25 +1,22 @@
 use crate::config::Conf;
 use crate::storage::*;
 use crate::error::IpseError;
-use codec::Encode;
-use frame_support::{StorageHasher, Twox64Concat};
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
-use sp_core::{ sr25519::{Pair, Public}};
 use sp_keyring::AccountKeyring;
-use sp_runtime::{SaturatedConversion, AccountId32};
+use sp_runtime::{SaturatedConversion};
 use sub_runtime::ipse::{Order};
 use substrate_subxt::{
     Client, ClientBuilder, Error as SubError, PairSigner,
 };
-use sub_runtime::ipse::Miner as SubMiner;
+// use sub_runtime::ipse::Miner as SubMiner;
 use triehash::ordered_trie_root;
 use crate::storage::ipfs::IpfsStorage;
 use crate::calls::{
     IpseRuntime as Runtime, AccountId, Balance,
-    MinersStoreExt, OrdersStoreExt,
-    RegisterMinerCallExt, ConfirmOrderCallExt, DeleteCallExt
+    OrdersStoreExt, RegisterMinerCallExt,
+    ConfirmOrderCallExt, DeleteCallExt
 };
 
 pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
@@ -30,7 +27,6 @@ pub struct Miner {
     url: &'static str,
     capacity: u64,
     unit_price: u64,
-    pair_signer: PairSigner<Runtime, Pair>,
     cli: Client<Runtime>,
     meta_db: Connection,
     storage: IpfsStorage,
@@ -84,11 +80,6 @@ impl Miner {
                 .await
                 .unwrap()
         });
-        let pwd = if let Some(pwd) = cfg.pwd {
-            Some(pwd.as_str())
-        } else { None };
-        let pair_signer = PairSigner::new(AccountKeyring::Alice.pair());
-            //Pair::from_legacy_string(&format!("//{}", cfg.sign), pwd);
 
         let miner = Self {
             nickname: cfg.nickname.as_str(),
@@ -96,7 +87,6 @@ impl Miner {
             url: cfg.url.as_str(),
             capacity: cfg.capacity,
             unit_price: cfg.unit_price,
-            pair_signer,
             cli,
             meta_db,
             storage,

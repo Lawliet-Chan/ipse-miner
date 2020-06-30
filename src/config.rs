@@ -12,8 +12,6 @@ pub struct Conf {
     pub meta_path: String,
     pub ipfs_url: String,
     pub chain_url: String,
-    pub sign: String,
-    pub pwd: Option<String>,
 }
 
 pub fn load_conf(fpath: &str) -> Conf {

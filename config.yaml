@@ -15,7 +15,3 @@ ipfs_url:
   - localhost:5001
 chain_url:
   - ws://localhost:9944
-sign:
-  - tiga
-pwd:
-  - ~
