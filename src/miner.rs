@@ -19,14 +19,14 @@ use crate::calls::{
     ConfirmOrderCallExt, DeleteCallExt
 };
 
-pub const SECTOR_SIZE: u64 = 128 * 1024 * 1024;
+pub const SECTOR_SIZE: i64 = 128 * 1024 * 1024;
 
 pub struct Miner {
     nickname: &'static str,
     region: &'static str,
     url: &'static str,
-    capacity: u64,
-    unit_price: u64,
+    capacity: i64,
+    unit_price: i64,
     cli: Client<Runtime>,
     meta_db: Connection,
     storage: IpfsStorage,
@@ -34,18 +34,18 @@ pub struct Miner {
 
 #[derive(Debug)]
 pub struct DataInfo {
-    pub order: u64,
-    pub sector: u64,
-    pub length: u64,
+    pub order: i64,
+    pub sector: i64,
+    pub length: i64,
     // In IPFS, it is hash.
     pub file_url: String,
 }
 
 #[derive(Debug)]
 pub struct SectorInfo {
-    pub sector: u64,
+    pub sector: i64,
     // remaining storage capacity
-    pub remain: u64,
+    pub remain: i64,
 }
 
 impl Miner {
@@ -68,7 +68,7 @@ impl Miner {
             sector  BIGINT AUTO_INCREMENT,\
             remain  BIGINT DEFAULT ?\
             )",
-                &[SECTOR_SIZE as i64],
+                &[SECTOR_SIZE],
             )
             .expect("init SectorInfo table failed");
 
@@ -85,8 +85,8 @@ impl Miner {
             nickname: cfg.nickname.as_str(),
             region: cfg.region.as_str(),
             url: cfg.url.as_str(),
-            capacity: cfg.capacity,
-            unit_price: cfg.unit_price,
+            capacity: cfg.capacity as i64,
+            unit_price: cfg.unit_price as i64,
             cli,
             meta_db,
             storage,
@@ -96,7 +96,7 @@ impl Miner {
         miner
     }
 
-    pub fn write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError> {
+    pub fn write_file(&self, id: i64, file: Vec<u8>) -> Result<(), IpseError> {
         let order_opt = self.get_order_from_chain(id as usize)?;
         if let Some(order) = order_opt {
             let merkle_root_on_chain = order.merkle_root;
@@ -107,11 +107,11 @@ impl Miner {
         Ok(())
     }
 
-    pub fn delete_file(&self, id: u64) -> Result<(), IpseError> {
+    pub fn delete_file(&self, id: i64) -> Result<(), IpseError> {
         self.do_delete_file(id)
     }
 
-    fn do_write_file(&self, id: u64, file: Vec<u8>) -> Result<(), IpseError> {
+    fn do_write_file(&self, id: i64, file: Vec<u8>) -> Result<(), IpseError> {
         let f_len = file.len();
 
         let file_url = self.storage.write(file)?;
@@ -119,14 +119,14 @@ impl Miner {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector FROM sector_info WHERE remain >= :size")?;
-        let rows = stmt.query_map_named(&[(":size", &f_len)], |row| row.get(0))?;
-        let sector_to_fill: u64 = if rows.count() == 0 {
+        let rows = stmt.query_map_named(&[(":size", &(f_len as isize))], |row| row.get(0))?;
+        let sector_to_fill: i64 = if rows.count() == 0 {
             self.meta_db.execute(
                 "INSERT INTO sector_info (remain) VALUES (?1)",
                 &[SECTOR_SIZE],
             )?;
             let mut stmt = self.meta_db.prepare("SELECT COUNT(*) FROM sector_info")?;
-            let count_rows = stmt.query_map_named(params![], |row| row.get(0))?;
+            let count_rows = stmt.query_map(params![], |row| row.get(0))?;
             count_rows[0]?
         } else {
             rows[0]?
@@ -135,24 +135,24 @@ impl Miner {
         self.meta_db.execute(
             "INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)",
             params![
-                id,
-                sector_to_fill,
-                f_len,
+                id  ,
+                sector_to_fill  ,
+                f_len as i64,
                 file_url,
             ],
         )?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2",
-            &[f_len, sector_to_fill as usize],
+            &[f_len as isize, sector_to_fill as isize],
         )?;
         Ok(())
     }
 
-    fn do_delete_file(&self, id: u64) -> Result<(), IpseError> {
+    fn do_delete_file(&self, id: i64) -> Result<(), IpseError> {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
-        let rows = stmt.query_map_named(&[(":order", &id)], |row| {
+        let rows = stmt.query_map_named(&[(":order", &(id  ))], |row| {
             Ok(DataInfo {
                 order: id,
                 sector: row.get(0)?,
@@ -165,7 +165,7 @@ impl Miner {
         self.storage.delete(file_url.as_str())?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2",
-            &[data_info.length, data_info.sector],
+            &[data_info.length  , data_info.sector  ],
         )?;
         Ok(())
     }
@@ -214,7 +214,7 @@ impl Miner {
                 self.nickname.as_bytes().to_vec(),
                 self.region.as_bytes().to_vec(),
                 self.url.as_bytes().to_vec(),
-                self.capacity,
+                self.capacity as u64,
                 self.unit_price.saturated_into::<Balance>(),
             ).await?;
             Ok(())

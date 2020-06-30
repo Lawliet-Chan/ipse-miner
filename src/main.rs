@@ -43,10 +43,10 @@ fn main() {
 pub fn new_order(id: usize, file: Data) -> Result<(), IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
-    MINER.write_file(id as u64, data)
+    MINER.write_file(id as i64, data)
 }
 
 #[delete("/order?<id>")]
 pub fn delete_order(id: usize) -> Result<(), IpseError> {
-    MINER.delete_file(id as u64)
+    MINER.delete_file(id as i64)
 }
