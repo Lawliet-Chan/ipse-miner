@@ -16,7 +16,7 @@ use crate::storage::ipfs::IpfsStorage;
 use crate::calls::{
     IpseRuntime as Runtime, AccountId, Balance,
     OrdersStoreExt, RegisterMinerCallExt,
-    ConfirmOrderCallExt, DeleteCallExt
+    ConfirmOrderCallExt
 };
 use std::borrow::{BorrowMut};
 
@@ -177,7 +177,7 @@ impl Miner {
             &[data_info.length  , data_info.sector  ],
         )?;
 
-        self.call_delete(id as usize)?;
+        // self.call_delete(id as usize)?;
         Ok(())
     }
 
@@ -245,11 +245,11 @@ impl Miner {
         })
     }
 
-    fn call_delete(&self, id: usize) -> Result<(), SubError> {
-        async_std::task::block_on(async move {
-            let signer = PairSigner::new(AccountKeyring::Alice.pair());
-            self.cli.delete(&signer, id as u64).await?;
-            Ok(())
-        })
-    }
+    // fn call_delete(&self, id: usize) -> Result<(), SubError> {
+    //     async_std::task::block_on(async move {
+    //         let signer = PairSigner::new(AccountKeyring::Alice.pair());
+    //         self.cli.delete(&signer, id as u64).await?;
+    //         Ok(())
+    //     })
+    // }
 }
