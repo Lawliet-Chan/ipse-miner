@@ -8,6 +8,7 @@ use std::io::Read;
 use crate::miner::Miner;
 use crate::error::IpseError;
 use once_cell::sync::Lazy;
+use std::sync::Mutex;
 
 mod config;
 mod miner;
@@ -15,7 +16,7 @@ mod error;
 mod storage;
 mod calls;
 
-static MINER: Lazy<Miner> = Lazy::new(|| {
+static MINER: Lazy<Mutex<Miner>> = Lazy::new(|| {
     let matches = App::new("Ipse Miner")
         .version("0.1.0")
         .about("Mining for Ipse chain")
@@ -29,7 +30,7 @@ static MINER: Lazy<Miner> = Lazy::new(|| {
     let conf_fpath = matches.value_of(CONF_PATH).unwrap();
 
     let cfg = config::load_conf(conf_fpath);
-    miner::Miner::new(cfg)
+    Mutex::new(miner::Miner::new(cfg))
 });
 
 pub const CONF_PATH: &'static str = "conf_path";
@@ -43,10 +44,10 @@ fn main() {
 pub fn new_order(id: usize, file: Data) -> Result<(), IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
-    MINER.write_file(id as i64, data)
+    MINER.lock().unwrap().write_file(id as i64, data)
 }
 
 #[delete("/order?<id>")]
 pub fn delete_order(id: usize) -> Result<(), IpseError> {
-    MINER.delete_file(id as i64)
+    MINER.lock().unwrap().delete_file(id as i64)
 }

@@ -138,8 +138,8 @@ impl Miner {
         self.meta_db.execute(
             "INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)",
             params![
-                id  ,
-                sector_to_fill  ,
+                id,
+                sector_to_fill,
                 f_len as i64,
                 file_url,
             ],
@@ -148,6 +148,8 @@ impl Miner {
             "UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2",
             &[f_len as isize, sector_to_fill as isize],
         )?;
+
+        self.call_confirm_order(id as usize, file_url)?;
         Ok(())
     }
 
@@ -174,6 +176,8 @@ impl Miner {
             "UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2",
             &[data_info.length  , data_info.sector  ],
         )?;
+
+        self.call_delete(id as usize)?;
         Ok(())
     }
 
@@ -197,11 +201,11 @@ impl Miner {
     fn get_order_from_chain(
         &self,
         id: usize,
-    ) -> Result<Option<&Order<AccountId, Balance>>, SubError> {
+    ) -> Result<Option<Order<AccountId, Balance>>, SubError> {
         async_std::task::block_on(async {
             let orders: Vec<Order<AccountId, Balance>> = self.cli.orders(None).await?;
             let order = orders.get(id);
-            Ok(order)
+            Ok(order.cloned())
         })
     }
 

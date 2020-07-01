@@ -5,7 +5,7 @@ use std::io::{Cursor};
 use futures::TryStreamExt;
 
 pub struct IpfsStorage {
-    cli: IpfsClient,
+    pub cli: IpfsClient,
 }
 
 impl Storage for IpfsStorage {
