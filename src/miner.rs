@@ -1,24 +1,21 @@
 use crate::config::Conf;
-use crate::storage::*;
 use crate::error::IpseError;
+use crate::storage::*;
 use keccak_hasher::KeccakHasher;
 use rusqlite::{params, Connection};
 
 use sp_keyring::AccountKeyring;
-use sp_runtime::{SaturatedConversion};
-use sub_runtime::ipse::{Order};
-use substrate_subxt::{
-    Client, ClientBuilder, Error as SubError, PairSigner,
-};
+use sp_runtime::SaturatedConversion;
+use sub_runtime::ipse::Order;
+use substrate_subxt::{Client, ClientBuilder, Error as SubError, PairSigner};
 // use sub_runtime::ipse::Miner as SubMiner;
-use triehash::ordered_trie_root;
-use crate::storage::ipfs::IpfsStorage;
 use crate::calls::{
-    IpseRuntime as Runtime, AccountId, Balance,
-    OrdersStoreExt, RegisterMinerCallExt,
-    ConfirmOrderCallExt
+    AccountId, Balance, ConfirmOrderCallExt, IpseRuntime as Runtime, OrdersStoreExt,
+    RegisterMinerCallExt,
 };
-use std::borrow::{BorrowMut};
+use crate::storage::ipfs::IpfsStorage;
+use std::borrow::BorrowMut;
+use triehash::ordered_trie_root;
 
 pub const SECTOR_SIZE: i64 = 128 * 1024 * 1024;
 
@@ -73,7 +70,7 @@ impl Miner {
             )
             .expect("init SectorInfo table failed");
 
-        let storage  = new_ipfs_storage(cfg.clone().ipfs_url);
+        let storage = new_ipfs_storage(cfg.clone().ipfs_url);
         let chain_url = cfg.clone().chain_url;
         let cli = async_std::task::block_on(async {
             ClientBuilder::<Runtime>::new()
@@ -137,12 +134,7 @@ impl Miner {
 
         self.meta_db.execute(
             "INSERT INTO data_info (order, sector, length, file_url) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                id,
-                sector_to_fill,
-                f_len as i64,
-                file_url,
-            ],
+            params![id, sector_to_fill, f_len as i64, file_url,],
         )?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain - ?1 WHERE sector = ?2",
@@ -157,7 +149,7 @@ impl Miner {
         let mut stmt = self
             .meta_db
             .prepare("SELECT sector, length, file_url FROM data_info WHERE order = :order")?;
-        let mut rows = stmt.query_map_named(&[(":order", &(id  ))], |row| {
+        let mut rows = stmt.query_map_named(&[(":order", &(id))], |row| {
             Ok(DataInfo {
                 order: id,
                 sector: row.get(0)?,
@@ -168,13 +160,15 @@ impl Miner {
         let row_opt = rows.next();
         let data_info: DataInfo = if let Some(row) = row_opt {
             row?
-        } else { return Ok(())};
+        } else {
+            return Ok(());
+        };
 
         let file_url = "/ipfs/".to_string() + data_info.file_url.as_str();
         self.storage.delete(file_url.as_str())?;
         self.meta_db.execute(
             "UPDATE sector_info SET remain = remain + ?1 WHERE sector = ?2",
-            &[data_info.length  , data_info.sector  ],
+            &[data_info.length, data_info.sector],
         )?;
 
         // self.call_delete(id as usize)?;
@@ -221,14 +215,16 @@ impl Miner {
     fn call_register_miner(&self) -> Result<(), SubError> {
         async_std::task::block_on(async move {
             let signer = PairSigner::new(AccountKeyring::Alice.pair());
-            self.cli.register_miner(
-                &signer,
-                self.nickname.as_bytes().to_vec(),
-                self.region.as_bytes().to_vec(),
-                self.url.as_bytes().to_vec(),
-                self.capacity as u64,
-                self.unit_price.saturated_into::<Balance>(),
-            ).await?;
+            self.cli
+                .register_miner(
+                    &signer,
+                    self.nickname.as_bytes().to_vec(),
+                    self.region.as_bytes().to_vec(),
+                    self.url.as_bytes().to_vec(),
+                    self.capacity as u64,
+                    self.unit_price.saturated_into::<Balance>(),
+                )
+                .await?;
             Ok(())
         })
     }
@@ -236,11 +232,9 @@ impl Miner {
     fn call_confirm_order(&self, id: usize, url: String) -> Result<(), SubError> {
         async_std::task::block_on(async move {
             let signer = PairSigner::new(AccountKeyring::Alice.pair());
-            self.cli.confirm_order(
-                &signer,
-                id as u64,
-                url.into_bytes()
-            ).await?;
+            self.cli
+                .confirm_order(&signer, id as u64, url.into_bytes())
+                .await?;
             Ok(())
         })
     }

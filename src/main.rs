@@ -2,19 +2,19 @@
 
 #[macro_use]
 extern crate rocket;
+use crate::error::IpseError;
+use crate::miner::Miner;
 use clap::{App, Arg};
+use once_cell::sync::Lazy;
 use rocket::Data;
 use std::io::Read;
-use crate::miner::Miner;
-use crate::error::IpseError;
-use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
-mod config;
-mod miner;
-mod error;
-mod storage;
 mod calls;
+mod config;
+mod error;
+mod miner;
+mod storage;
 
 static MINER: Lazy<Mutex<Miner>> = Lazy::new(|| {
     let matches = App::new("Ipse Miner")
@@ -36,8 +36,9 @@ static MINER: Lazy<Mutex<Miner>> = Lazy::new(|| {
 pub const CONF_PATH: &'static str = "conf_path";
 
 fn main() {
-
-    rocket::ignite().mount("/", routes![new_order, delete_order]).launch();
+    rocket::ignite()
+        .mount("/", routes![new_order, delete_order])
+        .launch();
 }
 
 #[post("/order?<id>", data = "<file>")]

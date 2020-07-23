@@ -1,8 +1,8 @@
-use crate::storage::Storage;
 use crate::error::IpseError;
-use ipfs_api::IpfsClient;
-use std::io::{Cursor};
+use crate::storage::Storage;
 use futures::TryStreamExt;
+use ipfs_api::IpfsClient;
+use std::io::Cursor;
 
 pub struct IpfsStorage {
     pub cli: IpfsClient,
@@ -23,7 +23,8 @@ impl Storage for IpfsStorage {
                 .cat(key)
                 .map_ok(|chunk| chunk.to_vec())
                 .try_concat()
-                .await.map_err(|e| From::from(e))
+                .await
+                .map_err(|e| From::from(e))
         })
     }
 

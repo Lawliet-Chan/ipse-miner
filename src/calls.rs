@@ -1,26 +1,21 @@
-use core::marker::PhantomData;
 use codec::Encode;
+use core::marker::PhantomData;
+use frame_support::Parameter;
+use sp_runtime::traits::{AtLeast32Bit, Scale};
+use sp_runtime::{
+    generic::Header,
+    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    MultiSignature, OpaqueExtrinsic,
+};
+use sub_runtime::ipse::Miner as SubMiner;
+use sub_runtime::ipse::Order;
+use substrate_subxt::{balances::AccountData, DefaultExtra, Runtime};
 use substrate_subxt::{
     balances::{Balances, BalancesEventsDecoder},
     module,
     system::{System, SystemEventsDecoder},
     Call, Store,
 };
-use sp_runtime::{
-    generic::Header,
-    traits::{
-        BlakeTwo256,
-        IdentifyAccount,
-        Verify,
-    },
-    MultiSignature,
-    OpaqueExtrinsic,
-};
-use substrate_subxt::{balances::AccountData, Runtime, DefaultExtra};
-use sp_runtime::traits::{AtLeast32Bit, Scale};
-use frame_support::Parameter;
-use sub_runtime::ipse::Miner as SubMiner;
-use sub_runtime::ipse::Order;
 
 pub type AccountId = <IpseRuntime as System>::AccountId;
 pub type Balance = <IpseRuntime as Balances>::Balance;
@@ -62,21 +57,20 @@ pub struct DeleteCall<T: Ipse> {
 }
 
 #[module]
-pub trait Ipse: System + Balances {
-
-}
+pub trait Ipse: System + Balances {}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IpseRuntime;
 
 pub trait Timestamp: System {
-    type Moment: Parameter + Default + AtLeast32Bit
-    + Scale<Self::BlockNumber, Output = Self::Moment> + Copy;
+    type Moment: Parameter
+        + Default
+        + AtLeast32Bit
+        + Scale<Self::BlockNumber, Output = Self::Moment>
+        + Copy;
 }
 
-impl Ipse for IpseRuntime {
-
-}
+impl Ipse for IpseRuntime {}
 
 impl Runtime for IpseRuntime {
     type Signature = MultiSignature;

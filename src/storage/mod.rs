@@ -1,10 +1,10 @@
 pub(crate) mod ipfs;
 
+use crate::error::IpseError;
 use http::Uri;
 use ipfs::IpfsStorage;
 use ipfs_api::IpfsClient;
 use ipfs_api::TryFromUri;
-use crate::error::IpseError;
 
 pub trait Storage {
     fn write(&self, file: Vec<u8>) -> Result<String, IpseError>;
