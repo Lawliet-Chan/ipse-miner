@@ -42,7 +42,7 @@ fn main() {
 }
 
 #[post("/order?<id>", data = "<file>")]
-pub fn new_order(id: usize, file: Data) -> Result<(), IpseError> {
+pub fn new_order(id: usize, file: Data) -> Result<String, IpseError> {
     let mut data = Vec::new();
     file.open().read(&mut data)?;
     MINER.lock().unwrap().write_file(id as i64, data)

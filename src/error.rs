@@ -1,5 +1,7 @@
 #[derive(Debug)]
 pub enum IpseError {
+    NoneOrder,
+    DataInvalid,
     IO(std::io::Error),
     Sqlite(rusqlite::Error),
     IpfsResp(ipfs_api::response::Error),
