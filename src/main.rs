@@ -36,6 +36,9 @@ static MINER: Lazy<Mutex<Miner>> = Lazy::new(|| {
 pub const CONF_PATH: &'static str = "conf_path";
 
 fn main() {
+    {
+        MINER.lock().unwrap().register_miner();
+    }
     rocket::ignite()
         .mount("/", routes![new_order, delete_order])
         .launch();

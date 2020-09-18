@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::fs::File;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conf {
@@ -15,6 +15,6 @@ pub struct Conf {
 }
 
 pub fn load_conf(fpath: &str) -> Conf {
-    let buf = fs::read_to_string(fpath).expect("load config file failed");
-    serde_yaml::from_str::<Conf>(buf.as_str()).expect("parse config file failed")
+    let f = File::open(fpath).expect("load config file failed");
+    serde_yaml::from_reader::<File, Conf>(f).expect("parse config file failed")
 }

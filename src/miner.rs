@@ -52,22 +52,23 @@ impl Miner {
         meta_db
             .execute(
                 "CREATE TABLE IF NOT EXISTS data_info (\
-            order  BIGINT PRIMARY KEY,\
-            sector BIGINT NOT NULL,\
-            length BIGINT NOT NULL,\
-            file_url TEXT NOT NULL\
-            )",
+                        `order`  INTEGER PRIMARY KEY,\
+                        sector INTEGER NOT NULL,\
+                        length INTEGER NOT NULL,\
+                        file_url TEXT NOT NULL\
+                )",
                 params![],
             )
             .expect("init DataInfo table failed");
         meta_db
-            .execute(
+            .prepare(
                 "CREATE TABLE IF NOT EXISTS sector_info (\
-            sector  BIGINT AUTO_INCREMENT,\
-            remain  BIGINT DEFAULT ?\
-            )",
-                &[SECTOR_SIZE],
+                        sector  INTEGER AUTO_INCREMENT,\
+                        remain  INTEGER DEFAULT ?\
+                )",
             )
+            .expect("SectorInfo table creates statement failed")
+            .execute(&[&SECTOR_SIZE])
             .expect("init SectorInfo table failed");
 
         let storage = new_ipfs_storage(cfg.clone().ipfs_url);
@@ -80,7 +81,7 @@ impl Miner {
                 .unwrap()
         });
 
-        let miner = Self {
+        Self {
             nickname: cfg.nickname,
             region: cfg.region,
             url: cfg.url,
@@ -89,10 +90,7 @@ impl Miner {
             cli,
             meta_db,
             storage,
-        };
-
-        miner.register_miner();
-        miner
+        }
     }
 
     pub fn write_file(&self, id: i64, file: Vec<u8>) -> Result<String, IpseError> {
@@ -178,8 +176,9 @@ impl Miner {
         Ok(())
     }
 
-    fn register_miner(&self) {
+    pub fn register_miner(&self) {
         //if !self.exist_miner_on_chain() {
+        println!("Register Miner!");
         self.call_register_miner()
             .expect("register miner to chain failed")
         //}
