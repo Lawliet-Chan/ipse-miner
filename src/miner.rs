@@ -60,15 +60,15 @@ impl Miner {
                 params![],
             )
             .expect("init DataInfo table failed");
-        meta_db
-            .prepare(
-                "CREATE TABLE IF NOT EXISTS sector_info (\
+        let create_sector_info = format!("CREATE TABLE IF NOT EXISTS sector_info (\
                         sector  INTEGER AUTO_INCREMENT,\
-                        remain  INTEGER DEFAULT ?\
-                )",
+                        remain  INTEGER DEFAULT {}\
+                )", SECTOR_SIZE);
+        meta_db
+            .execute(
+                create_sector_info.as_str(),
+                params![],
             )
-            .expect("SectorInfo table creates statement failed")
-            .execute(&[&SECTOR_SIZE])
             .expect("init SectorInfo table failed");
 
         let storage = new_ipfs_storage(cfg.clone().ipfs_url);
