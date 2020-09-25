@@ -94,17 +94,18 @@ impl Miner {
     }
 
     pub fn write_file(&self, id: i64, file: Vec<u8>) -> Result<String, IpseError> {
-        let order_opt = self.get_order_from_chain(id as usize)?;
-        if let Some(order) = order_opt {
-            let merkle_root_on_chain = order.merkle_root;
-            if self.check_merkle_root(&file, merkle_root_on_chain) {
-                self.do_write_file(id, file)
-            } else {
-                Err(IpseError::DataInvalid)
-            }
-        } else {
-            Err(IpseError::NoneOrder)
-        }
+        // let order_opt = self.get_order_from_chain(id as usize)?;
+        // if let Some(order) = order_opt {
+        //     let merkle_root_on_chain = order.merkle_root;
+        //     if self.check_merkle_root(&file, merkle_root_on_chain) {
+        //         self.do_write_file(id, file)
+        //     } else {
+        //         Err(IpseError::DataInvalid)
+        //     }
+        // } else {
+        //     Err(IpseError::NoneOrder)
+        // }
+        self.do_write_file(id, file)
     }
 
     pub fn delete_file(&self, id: i64) -> Result<(), IpseError> {
