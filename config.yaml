@@ -1,9 +1,9 @@
 
 nickname: my_miner
 region: asia
-url: localhost:7001
+url: http://localhost:7001
 capacity: 1024000000
 unit_price: 100
 meta_path: ./meta
-ipfs_url: localhost:5001
+ipfs_url: http://localhost:5001
 chain_url: ws://localhost:9944
