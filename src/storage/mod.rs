@@ -7,7 +7,7 @@ use ipfs_api::IpfsClient;
 use ipfs_api::TryFromUri;
 
 pub trait Storage {
-    fn write(&self, file: Vec<u8>) -> Result<String, IpseError>;
+    fn write(&self, path: &str) -> Result<String, IpseError>;
     fn read(&self, key: &str) -> Result<Vec<u8>, IpseError>;
     fn delete(&self, key: &str) -> Result<(), IpseError>;
 }

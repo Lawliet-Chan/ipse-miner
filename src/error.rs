@@ -2,6 +2,7 @@
 pub enum IpseError {
     NoneOrder,
     DataInvalid,
+    FileNotFoundFromClient,
     IO(std::io::Error),
     Sqlite(rusqlite::Error),
     IpfsResp(ipfs_api::response::Error),

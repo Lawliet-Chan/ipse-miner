@@ -16,6 +16,7 @@ use crate::calls::{
 use crate::storage::ipfs::IpfsStorage;
 use std::borrow::BorrowMut;
 use triehash::ordered_trie_root;
+use std::path::Path;
 
 pub const SECTOR_SIZE: i64 = 128 * 1024 * 1024;
 
@@ -93,7 +94,7 @@ impl Miner {
         }
     }
 
-    pub fn write_file(&self, id: i64, file: Vec<u8>) -> Result<String, IpseError> {
+    pub fn write_file(&self, id: i64, path: &str) -> Result<String, IpseError> {
         // let order_opt = self.get_order_from_chain(id as usize)?;
         // if let Some(order) = order_opt {
         //     let merkle_root_on_chain = order.merkle_root;
@@ -105,17 +106,19 @@ impl Miner {
         // } else {
         //     Err(IpseError::NoneOrder)
         // }
-        self.do_write_file(id, file)
+        self.do_write_file(id, path)
     }
 
     pub fn delete_file(&self, id: i64) -> Result<(), IpseError> {
         self.do_delete_file(id)
     }
 
-    fn do_write_file(&self, id: i64, file: Vec<u8>) -> Result<String, IpseError> {
-        let f_len = file.len();
+    fn do_write_file(&self, id: i64, path: &str) -> Result<String, IpseError> {
+        let p = Path::new(path);
+        let f_len = p.metadata()?.len();
 
-        let file_url = self.storage.write(file)?;
+        let file_url = self.storage.write(path)?;
+        println!("finished writing into ipfs");
 
         let mut stmt = self
             .meta_db
@@ -178,11 +181,9 @@ impl Miner {
     }
 
     pub fn register_miner(&self) {
-        //if !self.exist_miner_on_chain() {
         println!("Register Miner!");
         self.call_register_miner()
             .expect("register miner to chain failed")
-        //}
     }
 
     fn check_merkle_root(&self, file: &Vec<u8>, merkle_root_on_chain: [u8; 32]) -> bool {
