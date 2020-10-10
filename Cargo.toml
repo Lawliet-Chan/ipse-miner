@@ -25,6 +25,9 @@ tokio = {version = "0.2", features = ["full"]}
 rocket = "0.4.5"
 rocket_upload = "0.1.0"
 
+# shell = { git = "https://github.com/google/rust-shell.git", package = "shell" ,version = "0.1.0" }
+shells = "0.2.0"
+
 sp-keyring = { version = "2.0.0-rc4", package = "sp-keyring" }
 frame-support = { version = "2.0.0-rc4", package = "frame-support" }
 frame-system = { version = "2.0.0-rc4", package = "frame-system" }

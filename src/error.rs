@@ -5,7 +5,7 @@ pub enum IpseError {
     FileNotFoundFromClient,
     IO(std::io::Error),
     Sqlite(rusqlite::Error),
-    IpfsResp(ipfs_api::response::Error),
+    IpfsResp(String),
     Substrate(substrate_subxt::Error),
 }
 
@@ -18,12 +18,6 @@ impl From<std::io::Error> for IpseError {
 impl From<rusqlite::Error> for IpseError {
     fn from(err: rusqlite::Error) -> Self {
         IpseError::Sqlite(err)
-    }
-}
-
-impl From<ipfs_api::response::Error> for IpseError {
-    fn from(err: ipfs_api::response::Error) -> Self {
-        IpseError::IpfsResp(err)
     }
 }
 
